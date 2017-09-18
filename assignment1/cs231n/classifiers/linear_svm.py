@@ -80,7 +80,7 @@ def svm_loss_vectorized(W, X, y, reg):
   T = T - T[np.arange(num_train), y, np.newaxis] + 1
   T[np.arange(num_train), y] = 0
   T[T < 0] = 0
-  loss = T.sum() / num_train + reg * np.sum(W**2)
+  loss = T.sum() / num_train + reg * np.sum(W*W)
 
   #############################################################################
   #                             END OF YOUR CODE                              #

@@ -186,9 +186,10 @@ class FullyConnectedNet(object):
             self.params['W{}'.format(i+1)] = \
                 np.random.randn(dims[i], dims[i+1]) * weight_scale
             self.params['b{}'.format(i+1)] = np.zeros(dims[i+1])
-            if use_batchnorm:
-                self.params['gamma{}'.format(i+1)] = 1
-                self.params['beta{}'.format(i+1)] = 0
+
+        if self.use_batchnorm:
+            self.params.update({f'gamma{i}':np.ones(dims[i]) for i in range(1, self.num_layers)})
+            self.params.update({f'beta{i}':np.ones(dims[i]) for i in range(1, self.num_layers)})
         ############################################################################
         #                             END OF YOUR CODE                             #
         ############################################################################
@@ -251,7 +252,15 @@ class FullyConnectedNet(object):
         while i < self.num_layers:
             W = self.params['W{}'.format(i)]
             b = self.params['b{}'.format(i)]
-            X, cache = affine_relu_forward(X, W, b)
+            X, cache = affine_forward(X, W, b)
+            l.append(cache)
+            if self.use_batchnorm:
+                gamma = self.params[f'gamma{i}']
+                beta = self.params[f'beta{i}']
+                bn_param = self.bn_params[i-1]
+                X, cache = batchnorm_forward(X, gamma, beta, bn_param)
+                l.append(cache)
+            X, cache = relu_forward(X)
             l.append(cache)
             i += 1
         W = self.params['W{}'.format(i)]
@@ -287,7 +296,13 @@ class FullyConnectedNet(object):
         grads['b{}'.format(i)] = db
         while i > 1:
             i -= 1
-            dX, dW, db = affine_relu_backward(dX, l.pop())
+            # dX, dW, db = affine_relu_backward(dX, l.pop())
+            dX = relu_backward(dX, l.pop())
+            if self.use_batchnorm:
+                dX, dgamma, dbeta = batchnorm_backward(dX, l.pop())
+                grads[f'gamma{i}'] = dgamma
+                grads[f'beta{i}'] = dbeta
+            dX, dW, db = affine_backward(dX, l.pop())
             W = self.params['W{}'.format(i)]
             loss += 0.5 * self.reg * np.sum(W * W)
             dW += self.reg * W
